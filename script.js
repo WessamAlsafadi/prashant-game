@@ -11,8 +11,8 @@ const BASE_HEIGHT = 600;
 canvas.width = BASE_WIDTH;
 canvas.height = BASE_HEIGHT;
 
-const PLAYER_SIZE = 100;
-const ENEMY_SIZE = 150;
+const PLAYER_SIZE = 70;
+const ENEMY_SIZE = 65;
 const BULLET_SIZE = { width: 5, height: 15 };
 
 // --- GAME STATE VARIABLES ---
