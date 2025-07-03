@@ -1,159 +1,195 @@
 // --- 1. SETUP & DOM REFERENCES ---
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d'); // The "context" is our tool for drawing
 
 const gameOverScreen = document.getElementById('gameOverScreen');
 const finalScoreEl = document.getElementById('finalScore');
 const restartButton = document.getElementById('restartButton');
 
 // --- CONSTANTS ---
-// --- UPDATED --- These are now our BASE or VIRTUAL resolution.
-// All game logic happens in this 800x600 world.
-const BASE_WIDTH = 800;
-const BASE_HEIGHT = 600;
+const SCREEN_WIDTH = 800;
+const SCREEN_HEIGHT = 600;
 const PLAYER_SIZE = 50;
 const OBJECT_SIZE = 30;
 
 // Colors
-const PLAYER_COLOR = '#00FF00';
-const OBSTACLE_COLOR = '#FF0000';
-const TARGET_COLOR = '#FFD700';
+const PLAYER_COLOR = '#00FF00'; // Green
+const OBSTACLE_COLOR = '#FF0000'; // Red
+const TARGET_COLOR = '#FFD700'; // Gold
 
-// Set the canvas drawing surface size. This does NOT change.
-canvas.width = BASE_WIDTH;
-canvas.height = BASE_HEIGHT;
+// Set canvas dimensions
+canvas.width = SCREEN_WIDTH;
+canvas.height = SCREEN_HEIGHT;
 
 // --- GAME STATE VARIABLES ---
+// We use `let` because these will change during the game
 let player, keys, obstacles, targets, score, hearts, gameOver;
 let gameSpeed, spawnTimer, spawnInterval;
 
 // --- 2. GAME FUNCTIONS ---
 
+/**
+ * Resets all game variables to their initial state and starts the game.
+ */
 function init() {
+    // Player object
     player = {
-        x: BASE_WIDTH / 2 - PLAYER_SIZE / 2,
-        y: BASE_HEIGHT - PLAYER_SIZE - 20,
+        x: SCREEN_WIDTH / 2 - PLAYER_SIZE / 2,
+        y: SCREEN_HEIGHT - PLAYER_SIZE - 20,
         width: PLAYER_SIZE,
         height: PLAYER_SIZE,
         speed: 7
     };
-    keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+
+    // Keyboard state
+    keys = {
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false
+    };
+
+    // Arrays to hold our falling objects
     obstacles = [];
     targets = [];
+
+    // Game stats
     score = 0;
     hearts = 3;
     gameOver = false;
+    
+    // Difficulty
     gameSpeed = 3;
     spawnTimer = 0;
-    spawnInterval = 1000;
+    spawnInterval = 1000; // Spawn an object every 1000ms (1 second) initially
+
+    // Hide the game over screen
     gameOverScreen.classList.add('hidden');
+
+    // Start the game loop
     gameLoop();
 }
 
-// --- INPUT HANDLING (KEYBOARD & TOUCH) ---
-
-// Keyboard
-window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
-window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+/**
+ * Handles keyboard input for smooth movement.
+ */
+window.addEventListener('keydown', (e) => {
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = true;
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = false;
+    }
+});
 restartButton.addEventListener('click', init);
 
-// --- NEW: Touch Controls ---
-function handleTouch(e) {
-    e.preventDefault(); // Prevent screen from scrolling
-    // Get the position of the canvas on the page
-    const rect = canvas.getBoundingClientRect();
-    // Calculate the scale factor between the display size and the game size
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    // Get the touch coordinates and convert them to our internal game coordinates
-    const touchX = (e.touches[0].clientX - rect.left) * scaleX;
-    const touchY = (e.touches[0].clientY - rect.top) * scaleY;
-
-    // Move the player to the touch position (centered)
-    player.x = touchX - player.width / 2;
-    player.y = touchY - player.height / 2;
-
-    // Keep player within bounds
-    if (player.x < 0) player.x = 0;
-    if (player.x > BASE_WIDTH - player.width) player.x = BASE_WIDTH - player.width;
-    if (player.y < 0) player.y = 0;
-    if (player.y > BASE_HEIGHT - player.height) player.y = BASE_HEIGHT - player.height;
-}
-
-canvas.addEventListener('touchstart', handleTouch, { passive: false });
-canvas.addEventListener('touchmove', handleTouch, { passive: false });
-
-// --- GAME LOOP & LOGIC (Mostly Unchanged) ---
-
+/**
+ * The main game loop, which updates and draws the game continuously.
+ * `requestAnimationFrame` is a browser feature for smooth animations.
+ */
 let lastTime = 0;
 function gameLoop(timestamp = 0) {
     if (gameOver) {
+        // Show the game over screen
         finalScoreEl.textContent = score;
         gameOverScreen.classList.remove('hidden');
-        return;
+        return; // Stop the loop
     }
+    
+    // Calculate delta time for consistent speed on all computers
     const deltaTime = timestamp - lastTime;
     lastTime = timestamp;
 
-    ctx.clearRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+    // Clear the entire canvas for the new frame
+    ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
+    // --- UPDATE GAME LOGIC ---
     updatePlayer();
     updateObjects(deltaTime);
     checkCollisions();
 
+    // --- DRAW EVERYTHING ---
     drawPlayer();
     drawObjects();
     drawStats();
 
+    // Request the next frame
     requestAnimationFrame(gameLoop);
 }
 
+/**
+ * Updates the player's position based on keyboard input.
+ */
 function updatePlayer() {
-    // This keyboard logic still works for PC players
     if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
-    if (keys.ArrowRight && player.x < BASE_WIDTH - player.width) player.x += player.speed;
+    if (keys.ArrowRight && player.x < SCREEN_WIDTH - player.width) player.x += player.speed;
     if (keys.ArrowUp && player.y > 0) player.y -= player.speed;
-    if (keys.ArrowDown && player.y < BASE_HEIGHT - player.height) player.y += player.speed;
+    if (keys.ArrowDown && player.y < SCREEN_HEIGHT - player.height) player.y += player.speed;
 }
 
+/**
+ * Spawns, moves, and cleans up objects.
+ */
 function updateObjects(deltaTime) {
+    // Spawning logic
     spawnTimer += deltaTime;
     if (spawnTimer > spawnInterval) {
         spawnTimer = 0;
-        const spawnX = Math.random() * (BASE_WIDTH - OBJECT_SIZE);
-        if (Math.random() < 0.7) {
+        const spawnX = Math.random() * (SCREEN_WIDTH - OBJECT_SIZE);
+        
+        // Randomly decide whether to spawn a target or an obstacle
+        if (Math.random() < 0.7) { // 70% chance for an obstacle
             obstacles.push({ x: spawnX, y: -OBJECT_SIZE, width: OBJECT_SIZE, height: OBJECT_SIZE });
-        } else {
+        } else { // 30% chance for a target
             targets.push({ x: spawnX, y: -OBJECT_SIZE, width: OBJECT_SIZE, height: OBJECT_SIZE });
         }
     }
 
-    [...obstacles, ...targets].forEach(obj => { obj.y += gameSpeed; });
+    // Move objects down the screen
+    [...obstacles, ...targets].forEach(obj => {
+        obj.y += gameSpeed;
+    });
 
+    // Difficulty scaling: get faster and spawn more often as score increases
     gameSpeed = 3 + Math.floor(score / 5);
-    spawnInterval = Math.max(200, 1000 - score * 10);
+    spawnInterval = Math.max(200, 1000 - score * 10); // Don't let spawn rate get too crazy
 
-    obstacles = obstacles.filter(obj => obj.y < BASE_HEIGHT);
-    targets = targets.filter(obj => obj.y < BASE_HEIGHT);
+    // Remove objects that go off-screen
+    obstacles = obstacles.filter(obj => obj.y < SCREEN_HEIGHT);
+    targets = targets.filter(obj => obj.y < SCREEN_HEIGHT);
 }
 
+/**
+ * Checks for collisions between the player and objects.
+ */
 function checkCollisions() {
+    // Check collisions with obstacles
     for (let i = obstacles.length - 1; i >= 0; i--) {
-        if (isColliding(player, obstacles[i])) {
+        const obj = obstacles[i];
+        if (isColliding(player, obj)) {
             hearts--;
-            obstacles.splice(i, 1);
-            if (hearts <= 0) gameOver = true;
+            obstacles.splice(i, 1); // Remove the obstacle
+            if (hearts <= 0) {
+                gameOver = true;
+            }
         }
     }
+    
+    // Check collisions with targets
     for (let i = targets.length - 1; i >= 0; i--) {
-        if (isColliding(player, targets[i])) {
+        const obj = targets[i];
+        if (isColliding(player, obj)) {
             score++;
-            targets.splice(i, 1);
+            targets.splice(i, 1); // Remove the target
         }
     }
 }
 
+/**
+ * Helper function for AABB (Axis-Aligned Bounding Box) collision detection.
+ */
 function isColliding(rect1, rect2) {
     return (
         rect1.x < rect2.x + rect2.width &&
@@ -163,7 +199,7 @@ function isColliding(rect1, rect2) {
     );
 }
 
-// --- DRAWING FUNCTIONS (Unchanged) ---
+// --- DRAWING FUNCTIONS ---
 
 function drawPlayer() {
     ctx.fillStyle = PLAYER_COLOR;
@@ -173,6 +209,7 @@ function drawPlayer() {
 function drawObjects() {
     ctx.fillStyle = OBSTACLE_COLOR;
     obstacles.forEach(obj => ctx.fillRect(obj.x, obj.y, obj.width, obj.height));
+
     ctx.fillStyle = TARGET_COLOR;
     targets.forEach(obj => ctx.fillRect(obj.x, obj.y, obj.width, obj.height));
 }
@@ -181,7 +218,7 @@ function drawStats() {
     ctx.fillStyle = 'white';
     ctx.font = '30px "Courier New"';
     ctx.fillText(`Score: ${score}`, 20, 40);
-    ctx.fillText(`Hearts: ${hearts}`, BASE_WIDTH - 150, 40);
+    ctx.fillText(`Hearts: ${hearts}`, SCREEN_WIDTH - 150, 40);
 }
 
 // --- 3. START THE GAME ---
