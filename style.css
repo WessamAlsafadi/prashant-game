@@ -12,27 +12,47 @@ body {
     overflow: hidden;
 }
 
-/* Responsive Container */
+/* --- MODIFIED CONTAINER --- */
+/* We simplify the container. It no longer controls the aspect ratio.
+   Instead, it just acts as a flexible boundary for the canvas and
+   a positioning reference for the game over screen. */
 #gameContainer {
     position: relative;
-    aspect-ratio: 800 / 600; 
-    height: 95vh;
-    max-width: 95vw;
-}
-
-/* Canvas fills its container */
-canvas {
     width: 100%;
     height: 100%;
-    background-color: navy blue;
+    display: flex; /* Use flexbox to center the canvas inside it */
+    justify-content: center;
+    align-items: center;
+}
+
+/* --- MODIFIED CANVAS (THE KEY FIX) --- */
+/* The canvas now controls its own scaling and aspect ratio. */
+canvas {
+    /* REMOVED 'width' and 'height' so they don't override object-fit. */
+    /* Let the canvas scale up, but not beyond the container's size. */
+    max-width: 100%;
+    max-height: 100%;
+
+    /* THIS IS THE MAGIC PROPERTY. It scales the canvas while
+       maintaining the 800x600 aspect ratio set in the JS.
+       It will automatically create letterboxing (black bars). */
+    object-fit: contain;
+
+    /* Your original styling is great */
+    background-color: navy; /* Corrected 'navy blue' to 'navy' */
     border: 3px solid white;
     box-sizing: border-box;
-    cursor: none; /* Hide the mouse cursor over the game */
+    cursor: none;
 }
+
+/* --- NO CHANGES BELOW THIS LINE --- */
+/* Your Game Over screen styling is excellent and needs no changes. */
 
 /* Game Over screen */
 #gameOverScreen {
     position: absolute;
+    /* We can remove top/left/width/height and let the parent flexbox do the work,
+       but your method is also fine since it's an overlay. Let's keep it for clarity. */
     top: 0; left: 0;
     width: 100%;
     height: 100%;
@@ -43,9 +63,10 @@ canvas {
     background-color: rgba(0, 0, 0, 0.85);
     font-size: clamp(1rem, 3vw, 2rem);
     text-align: center;
+    /* Added to ensure it's on top of the canvas */
+    z-index: 10;
 }
 
-/* --- UPDATED --- */
 #gameOverScreen h1 {
     font-size: clamp(2.5rem, 8vw, 5rem);
     color: #FFD700; /* Gold color */
@@ -73,6 +94,8 @@ canvas {
     transform: scale(1.1);
 }
 
+/* Using !important here is a good practice to ensure it overrides
+   any potential inline style modifications from JS. */
 .hidden {
     display: none !important;
 }
