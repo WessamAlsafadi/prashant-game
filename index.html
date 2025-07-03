@@ -2,22 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dodge 'n Score - Web Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Image Shooter 5000</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- This is where the game will be drawn -->
-    <canvas id="gameCanvas"></canvas>
-
-    <!-- This is the game over screen, hidden by default -->
-    <div id="gameOverScreen" class="hidden">
-        <h1>GAME OVER</h1>
-        <p>Final Score: <span id="finalScore">0</span></p>
-        <button id="restartButton">Play Again</button>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <!-- --- UPDATED Game Over Screen --- -->
+        <div id="gameOverScreen" class="hidden">
+            <h1>Get it Done...</h1>
+            <p class="subtitle">Thanks for playing!</p>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartButton">Play Again</button>
+        </div>
     </div>
-
-    <!-- We link the JavaScript file at the end so it runs after the page is loaded -->
+    
     <script src="script.js"></script>
 </body>
 </html>
