@@ -1,63 +1,47 @@
 /* Basic reset and background */
 body {
     margin: 0;
-    background-color: #1a1a1a;
+    background-color: #1a1a1a; /* Dark background */
     display: flex;
     justify-content: center;
     align-items: center;
-    /* --- UPDATED --- Use full viewport height and width */
-    width: 100vw;
     height: 100vh;
     font-family: 'Consolas', 'Courier New', monospace;
     color: white;
-    overflow: hidden; /* Prevent scrolling, especially on mobile */
+    overflow: hidden; /* Hide scrollbars */
 }
 
-/* --- NEW: The Responsive Container --- */
-/* This is the secret sauce. It will hold our game and scale properly. */
-#gameContainer {
-    position: relative; /* Needed for positioning children like the canvas and game over screen */
-    /* We define the aspect ratio based on our game's base resolution (800x600) */
-    aspect-ratio: 800 / 600; 
-    /* It will try to fill the height, but not exceed 100% of the viewport width */
-    height: 95vh;
-    max-width: 95vw;
-}
-
-/* --- UPDATED: Canvas now fills its container --- */
+/* The game canvas */
 canvas {
-    width: 100%;
-    height: 100%;
     background-color: black;
     border: 3px solid white;
-    box-sizing: border-box; /* Ensures border is inside the width/height */
 }
 
-/* --- UPDATED: Game Over screen now fills the container too --- */
+/* The game over screen container */
 #gameOverScreen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%; /* Fill the container */
-    height: 100%; /* Fill the container */
+    position: absolute; /* Puts it on top of the canvas */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: rgba(0, 0, 0, 0.75);
-    /* Use responsive font sizes */
-    font-size: clamp(1rem, 3vw, 2rem);
+    background-color: rgba(0, 0, 0, 0.75); /* Semi-transparent black */
+    width: 100%;
+    height: 100%;
 }
 
 #gameOverScreen h1 {
-    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-size: 5em;
     color: red;
     margin: 0;
 }
 
+#gameOverScreen p {
+    font-size: 2em;
+}
+
 #restartButton {
-    padding: 1em 2em; /* Use em for scalable padding */
-    font-size: 1.5em; /* Scalable font size */
+    padding: 15px 30px;
+    font-size: 1.5em;
     background-color: white;
     color: black;
     border: none;
@@ -70,6 +54,7 @@ canvas {
     transform: scale(1.1);
 }
 
+/* A helper class to hide elements */
 .hidden {
     display: none !important;
 }
