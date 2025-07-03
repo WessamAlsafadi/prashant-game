@@ -2,22 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- This viewport tag is CRUCIAL for responsiveness on mobile -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Dodge 'n Score - Responsive</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodge 'n Score - Web Edition</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- --- NEW --- We wrap everything in a container -->
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="gameOverScreen" class="hidden">
-            <h1>GAME OVER</h1>
-            <p>Final Score: <span id="finalScore">0</span></p>
-            <button id="restartButton">Play Again</button>
-        </div>
+    <!-- This is where the game will be drawn -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- This is the game over screen, hidden by default -->
+    <div id="gameOverScreen" class="hidden">
+        <h1>GAME OVER</h1>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <button id="restartButton">Play Again</button>
     </div>
-    
+
+    <!-- We link the JavaScript file at the end so it runs after the page is loaded -->
     <script src="script.js"></script>
 </body>
 </html>
