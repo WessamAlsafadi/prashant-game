@@ -24,7 +24,7 @@ body {
 canvas {
     width: 100%;
     height: 100%;
-    background-color: black;
+    background-color: navy blue;
     border: 3px solid white;
     box-sizing: border-box;
     cursor: none; /* Hide the mouse cursor over the game */
