@@ -1,195 +1,237 @@
 // --- 1. SETUP & DOM REFERENCES ---
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d'); // The "context" is our tool for drawing
-
+const ctx = canvas.getContext('2d');
 const gameOverScreen = document.getElementById('gameOverScreen');
 const finalScoreEl = document.getElementById('finalScore');
 const restartButton = document.getElementById('restartButton');
 
 // --- CONSTANTS ---
-const SCREEN_WIDTH = 800;
-const SCREEN_HEIGHT = 600;
+const BASE_WIDTH = 800;
+const BASE_HEIGHT = 600;
+canvas.width = BASE_WIDTH;
+canvas.height = BASE_HEIGHT;
+
 const PLAYER_SIZE = 50;
-const OBJECT_SIZE = 30;
-
-// Colors
-const PLAYER_COLOR = '#00FF00'; // Green
-const OBSTACLE_COLOR = '#FF0000'; // Red
-const TARGET_COLOR = '#FFD700'; // Gold
-
-// Set canvas dimensions
-canvas.width = SCREEN_WIDTH;
-canvas.height = SCREEN_HEIGHT;
+const ENEMY_SIZE = 45;
+const BULLET_SIZE = { width: 5, height: 15 };
 
 // --- GAME STATE VARIABLES ---
-// We use `let` because these will change during the game
-let player, keys, obstacles, targets, score, hearts, gameOver;
+let player, keys, enemies, bullets, score, hearts, gameOver;
 let gameSpeed, spawnTimer, spawnInterval;
+let images = {}; // Object to hold all our loaded images
 
-// --- 2. GAME FUNCTIONS ---
+// ------------------------------------------------------------------
+// --- ‼️ IMAGE SETUP - THIS IS WHERE YOU ADD YOUR IMAGES ‼️ ---
+// ------------------------------------------------------------------
+// To use your own images, place them in the same folder as your
+// HTML file and change the file names below.
+const IMAGE_ASSETS = {
+    player: 'player.png', // Create a 'player.png' image file
+    enemy: 'enemy.png',   // Create an 'enemy.png' image file
+    enemyDamaged: 'enemy_damaged.png', // An image for when the enemy is hit once
+    bullet: 'bullet.png' // A 'bullet.png' for the projectile
+};
+// If you don't have images, the game will draw colored squares as a fallback.
+// ------------------------------------------------------------------
+
 
 /**
- * Resets all game variables to their initial state and starts the game.
+ * Loads all images and starts the game when done.
+ */
+function loadAssetsAndStart() {
+    let assetsLoaded = 0;
+    const assetKeys = Object.keys(IMAGE_ASSETS);
+    
+    // Show a loading message
+    ctx.fillStyle = 'white';
+    ctx.font = '30px "Courier New"';
+    ctx.fillText('Loading Assets...', BASE_WIDTH / 2 - 100, BASE_HEIGHT / 2);
+
+    assetKeys.forEach(key => {
+        images[key] = new Image();
+        images[key].src = IMAGE_ASSETS[key];
+        images[key].onload = () => {
+            assetsLoaded++;
+            if (assetsLoaded === assetKeys.length) {
+                // All images loaded, start the game!
+                init();
+            }
+        };
+        // If an image fails to load, we'll just have an empty image object.
+        // The draw functions will handle this by drawing a square instead.
+        images[key].onerror = () => {
+            assetsLoaded++;
+            console.error(`Could not load image: ${IMAGE_ASSETS[key]}`);
+            if (assetsLoaded === assetKeys.length) {
+                init();
+            }
+        };
+    });
+}
+
+
+/**
+ * Resets all game variables to their initial state.
  */
 function init() {
-    // Player object
     player = {
-        x: SCREEN_WIDTH / 2 - PLAYER_SIZE / 2,
-        y: SCREEN_HEIGHT - PLAYER_SIZE - 20,
+        x: BASE_WIDTH / 2 - PLAYER_SIZE / 2,
+        y: BASE_HEIGHT - PLAYER_SIZE - 20,
         width: PLAYER_SIZE,
         height: PLAYER_SIZE,
-        speed: 7
+        speed: 7,
+        shootCooldown: 250, // Fires every 250ms
+        lastShotTime: 0
     };
-
-    // Keyboard state
-    keys = {
-        ArrowUp: false,
-        ArrowDown: false,
-        ArrowLeft: false,
-        ArrowRight: false
-    };
-
-    // Arrays to hold our falling objects
-    obstacles = [];
-    targets = [];
-
-    // Game stats
+    keys = { ArrowLeft: false, ArrowRight: false }; // Movement is only left/right now
+    enemies = [];
+    bullets = [];
     score = 0;
     hearts = 3;
     gameOver = false;
-    
-    // Difficulty
-    gameSpeed = 3;
+    gameSpeed = 1;
     spawnTimer = 0;
-    spawnInterval = 1000; // Spawn an object every 1000ms (1 second) initially
-
-    // Hide the game over screen
+    spawnInterval = 1500;
     gameOverScreen.classList.add('hidden');
-
-    // Start the game loop
     gameLoop();
 }
 
-/**
- * Handles keyboard input for smooth movement.
- */
-window.addEventListener('keydown', (e) => {
-    if (keys.hasOwnProperty(e.key)) {
-        keys[e.key] = true;
-    }
-});
-window.addEventListener('keyup', (e) => {
-    if (keys.hasOwnProperty(e.key)) {
-        keys[e.key] = false;
-    }
-});
-restartButton.addEventListener('click', init);
+// --- INPUT HANDLING ---
+window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+restartButton.addEventListener('click', loadAssetsAndStart);
 
-/**
- * The main game loop, which updates and draws the game continuously.
- * `requestAnimationFrame` is a browser feature for smooth animations.
- */
+// Touch controls for movement
+function handleTouch(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const touchX = (e.touches[0].clientX - rect.left) * scaleX;
+    player.x = touchX - player.width / 2;
+    // Keep player within bounds
+    if (player.x < 0) player.x = 0;
+    if (player.x > BASE_WIDTH - player.width) player.x = BASE_WIDTH - player.width;
+}
+canvas.addEventListener('touchstart', handleTouch, { passive: false });
+canvas.addEventListener('touchmove', handleTouch, { passive: false });
+
+
+// --- GAME LOOP ---
 let lastTime = 0;
 function gameLoop(timestamp = 0) {
     if (gameOver) {
-        // Show the game over screen
         finalScoreEl.textContent = score;
         gameOverScreen.classList.remove('hidden');
-        return; // Stop the loop
+        return;
     }
-    
-    // Calculate delta time for consistent speed on all computers
     const deltaTime = timestamp - lastTime;
     lastTime = timestamp;
 
-    // Clear the entire canvas for the new frame
-    ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    ctx.clearRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
 
-    // --- UPDATE GAME LOGIC ---
-    updatePlayer();
-    updateObjects(deltaTime);
+    updatePlayer(timestamp);
+    updateEnemies();
+    updateBullets();
     checkCollisions();
 
-    // --- DRAW EVERYTHING ---
     drawPlayer();
-    drawObjects();
+    drawEnemies();
+    drawBullets();
     drawStats();
 
-    // Request the next frame
     requestAnimationFrame(gameLoop);
 }
 
-/**
- * Updates the player's position based on keyboard input.
- */
-function updatePlayer() {
+// --- UPDATE FUNCTIONS ---
+
+function updatePlayer(currentTime) {
+    // Keyboard movement
     if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
-    if (keys.ArrowRight && player.x < SCREEN_WIDTH - player.width) player.x += player.speed;
-    if (keys.ArrowUp && player.y > 0) player.y -= player.speed;
-    if (keys.ArrowDown && player.y < SCREEN_HEIGHT - player.height) player.y += player.speed;
+    if (keys.ArrowRight && player.x < BASE_WIDTH - player.width) player.x += player.speed;
+
+    // Shooting
+    if (currentTime - player.lastShotTime > player.shootCooldown) {
+        player.lastShotTime = currentTime;
+        bullets.push({
+            x: player.x + player.width / 2 - BULLET_SIZE.width / 2,
+            y: player.y,
+            width: BULLET_SIZE.width,
+            height: BULLET_SIZE.height,
+            speed: 10
+        });
+    }
 }
 
-/**
- * Spawns, moves, and cleans up objects.
- */
-function updateObjects(deltaTime) {
-    // Spawning logic
-    spawnTimer += deltaTime;
+function updateEnemies() {
+    // Spawn new enemies
+    spawnTimer += 16; // Approximately 60fps
     if (spawnTimer > spawnInterval) {
         spawnTimer = 0;
-        const spawnX = Math.random() * (SCREEN_WIDTH - OBJECT_SIZE);
+        const spawnX = Math.random() * (BASE_WIDTH - ENEMY_SIZE);
+        enemies.push({
+            x: spawnX, y: -ENEMY_SIZE,
+            width: ENEMY_SIZE, height: ENEMY_SIZE,
+            hp: 2 // Each enemy has 2 health
+        });
+    }
+
+    // Move enemies towards the player
+    enemies.forEach(enemy => {
+        const dx = (player.x + player.width / 2) - (enemy.x + enemy.width / 2);
+        const dy = (player.y + player.height / 2) - (enemy.y + enemy.height / 2);
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Randomly decide whether to spawn a target or an obstacle
-        if (Math.random() < 0.7) { // 70% chance for an obstacle
-            obstacles.push({ x: spawnX, y: -OBJECT_SIZE, width: OBJECT_SIZE, height: OBJECT_SIZE });
-        } else { // 30% chance for a target
-            targets.push({ x: spawnX, y: -OBJECT_SIZE, width: OBJECT_SIZE, height: OBJECT_SIZE });
+        if (distance > 1) {
+            enemy.x += (dx / distance) * gameSpeed;
+            enemy.y += (dy / distance) * gameSpeed;
+        }
+    });
+    
+    // Difficulty scaling
+    gameSpeed = 1 + Math.floor(score / 10);
+    spawnInterval = Math.max(300, 1500 - score * 15);
+}
+
+function updateBullets() {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y -= bullets[i].speed;
+        if (bullets[i].y < 0) {
+            bullets.splice(i, 1); // Remove bullets that go off-screen
+        }
+    }
+}
+
+// --- COLLISION DETECTION ---
+
+function checkCollisions() {
+    // Bullet-Enemy collisions
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            if (isColliding(bullets[i], enemies[j])) {
+                enemies[j].hp--; // Decrease enemy health
+                bullets.splice(i, 1); // Remove the bullet
+                
+                if (enemies[j].hp <= 0) {
+                    score++;
+                    enemies.splice(j, 1); // Remove the enemy
+                }
+                break; // Bullet can only hit one enemy
+            }
         }
     }
 
-    // Move objects down the screen
-    [...obstacles, ...targets].forEach(obj => {
-        obj.y += gameSpeed;
-    });
-
-    // Difficulty scaling: get faster and spawn more often as score increases
-    gameSpeed = 3 + Math.floor(score / 5);
-    spawnInterval = Math.max(200, 1000 - score * 10); // Don't let spawn rate get too crazy
-
-    // Remove objects that go off-screen
-    obstacles = obstacles.filter(obj => obj.y < SCREEN_HEIGHT);
-    targets = targets.filter(obj => obj.y < SCREEN_HEIGHT);
-}
-
-/**
- * Checks for collisions between the player and objects.
- */
-function checkCollisions() {
-    // Check collisions with obstacles
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        const obj = obstacles[i];
-        if (isColliding(player, obj)) {
+    // Player-Enemy collisions
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        if (isColliding(player, enemies[i])) {
             hearts--;
-            obstacles.splice(i, 1); // Remove the obstacle
+            enemies.splice(i, 1); // Remove enemy on collision
             if (hearts <= 0) {
                 gameOver = true;
             }
         }
     }
-    
-    // Check collisions with targets
-    for (let i = targets.length - 1; i >= 0; i--) {
-        const obj = targets[i];
-        if (isColliding(player, obj)) {
-            score++;
-            targets.splice(i, 1); // Remove the target
-        }
-    }
 }
 
-/**
- * Helper function for AABB (Axis-Aligned Bounding Box) collision detection.
- */
 function isColliding(rect1, rect2) {
     return (
         rect1.x < rect2.x + rect2.width &&
@@ -199,27 +241,43 @@ function isColliding(rect1, rect2) {
     );
 }
 
-// --- DRAWING FUNCTIONS ---
+// --- DRAWING FUNCTIONS (IMAGE-READY) ---
 
-function drawPlayer() {
-    ctx.fillStyle = PLAYER_COLOR;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+function draw(assetKey, color, obj) {
+    if (images[assetKey] && images[assetKey].complete && images[assetKey].naturalHeight !== 0) {
+        ctx.drawImage(images[assetKey], obj.x, obj.y, obj.width, obj.height);
+    } else {
+        // Fallback to drawing a colored square if image is missing/broken
+        ctx.fillStyle = color;
+        ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+    }
 }
 
-function drawObjects() {
-    ctx.fillStyle = OBSTACLE_COLOR;
-    obstacles.forEach(obj => ctx.fillRect(obj.x, obj.y, obj.width, obj.height));
+function drawPlayer() {
+    draw('player', '#00FF00', player);
+}
 
-    ctx.fillStyle = TARGET_COLOR;
-    targets.forEach(obj => ctx.fillRect(obj.x, obj.y, obj.width, obj.height));
+function drawEnemies() {
+    enemies.forEach(enemy => {
+        // Draw damaged image if hp is 1, otherwise draw normal image
+        const assetKey = enemy.hp === 1 ? 'enemyDamaged' : 'enemy';
+        const fallbackColor = enemy.hp === 1 ? 'orange' : 'red';
+        draw(assetKey, fallbackColor, enemy);
+    });
+}
+
+function drawBullets() {
+    bullets.forEach(bullet => {
+        draw('bullet', 'yellow', bullet);
+    });
 }
 
 function drawStats() {
     ctx.fillStyle = 'white';
     ctx.font = '30px "Courier New"';
     ctx.fillText(`Score: ${score}`, 20, 40);
-    ctx.fillText(`Hearts: ${hearts}`, SCREEN_WIDTH - 150, 40);
+    ctx.fillText(`Hearts: ${hearts}`, BASE_WIDTH - 150, 40);
 }
 
 // --- 3. START THE GAME ---
-init();
+loadAssetsAndStart();
